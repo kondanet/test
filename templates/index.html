@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TPV Sistema{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard TPV
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Ventas Hoy</h4>
+                        <h2 id="sales-today">$0.00</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-dollar-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Productos</h4>
+                        <h2 id="total-products">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-box fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Stock Bajo</h4>
+                        <h2 id="low-stock">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Transacciones</h4>
+                        <h2 id="total-transactions">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-receipt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-rocket me-2"></i>Acciones Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('pos') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-cash-register me-2"></i>Abrir Punto de Venta
+                    </a>
+                    <a href="{{ url_for('inventory') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Agregar Producto
+                    </a>
+                    <a href="{{ url_for('sales') }}" class="btn btn-info">
+                        <i class="fas fa-chart-line me-2"></i>Ver Reportes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock me-2"></i>Ventas Recientes</h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-sales" class="list-group list-group-flush">
+                    <!-- Las ventas recientes se cargarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-exclamation-circle me-2"></i>Productos con Stock Bajo</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock Actual</th>
+                                <th>Precio</th>
+                                <th>Categoría</th>
+                            </tr>
+                        </thead>
+                        <tbody id="low-stock-table">
+                            <!-- Productos con stock bajo se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+});
+
+function loadDashboardData() {
+    // Cargar productos
+    fetch('/api/products')
+        .then(response => response.json())
+        .then(products => {
+            document.getElementById('total-products').textContent = products.length;
+            
+            // Productos con stock bajo (menos de 10)
+            const lowStockProducts = products.filter(p => p.stock < 10);
+            document.getElementById('low-stock').textContent = lowStockProducts.length;
+            
+            // Mostrar productos con stock bajo
+            const lowStockTable = document.getElementById('low-stock-table');
+            lowStockTable.innerHTML = '';
+            
+            lowStockProducts.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.name}</td>
+                    <td><span class="badge bg-warning">${product.stock}</span></td>
+                    <td>$${product.price.toFixed(2)}</td>
+                    <td>${product.category_id || 'Sin categoría'}</td>
+                `;
+                lowStockTable.appendChild(row);
+            });
+            
+            if (lowStockProducts.length === 0) {
+                lowStockTable.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay productos con stock bajo</td></tr>';
+            }
+        });
+
+    // Cargar ventas
+    fetch('/api/sales')
+        .then(response => response.json())
+        .then(sales => {
+            document.getElementById('total-transactions').textContent = sales.length;
+            
+            // Calcular ventas de hoy
+            const today = new Date().toISOString().split('T')[0];
+            const todaySales = sales.filter(sale => sale.created_at.startsWith(today));
+            const todayTotal = todaySales.reduce((sum, sale) => sum + sale.total, 0);
+            document.getElementById('sales-today').textContent = `$${todayTotal.toFixed(2)}`;
+            
+            // Mostrar ventas recientes (últimas 5)
+            const recentSales = document.getElementById('recent-sales');
+            recentSales.innerHTML = '';
+            
+            const recentSalesList = sales.slice(0, 5);
+            recentSalesList.forEach(sale => {
+                const saleDate = new Date(sale.created_at).toLocaleString();
+                const saleElement = document.createElement('div');
+                saleElement.className = 'list-group-item d-flex justify-content-between align-items-center';
+                saleElement.innerHTML = `
+                    <div>
+                        <strong>Venta #${sale.id}</strong><br>
+                        <small class="text-muted">${saleDate}</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">$${sale.total.toFixed(2)}</span>
+                `;
+                recentSales.appendChild(saleElement);
+            });
+            
+            if (recentSalesList.length === 0) {
+                recentSales.innerHTML = '<div class="text-center text-muted">No hay ventas recientes</div>';
+            }
+        });
+}
+</script>
+{% endblock %}
