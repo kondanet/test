@@ -75,12 +75,31 @@ class GameManager {
         this.cursors = this.gameScene.input.keyboard.createCursorKeys();
         this.wasd = this.gameScene.input.keyboard.addKeys('W,S,A,D');
         
+        // Setup mouse/touch input
+        this.setupMouseControls();
+        
         // Add text for game info
         this.gameInfoText = this.gameScene.add.text(10, 10, '', {
             fontSize: '16px',
             fill: '#00ff88',
             fontFamily: 'Orbitron'
         }).setScrollFactor(0);
+        
+        // Add control instructions
+        this.controlsText = this.gameScene.add.text(10, this.gameScene.cameras.main.height - 80, 
+            '🖱️ Mueve el mouse hacia donde quieras ir\n📱 Desliza en móviles | ⌨️ WASD/Flechas', {
+            fontSize: '12px',
+            fill: '#00ff88',
+            fontFamily: 'Orbitron',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: { x: 12, y: 8 },
+            align: 'left'
+        }).setScrollFactor(0);
+        
+        // Crear indicador de dirección del mouse
+        this.mouseIndicator = this.gameScene.add.graphics();
+        this.mouseIndicator.setScrollFactor(0);
+        this.mouseIndicator.setDepth(1000); // Asegurar que esté encima de todo
         
         // Connect to game server
         this.connectToGame();
@@ -94,10 +113,11 @@ class GameManager {
     }
 
     handleInput() {
-        if (!this.currentPlayer || !this.currentPlayer.alive) return;
+        if (!this.connected || !this.gameStarted || !this.currentPlayer || !this.currentPlayer.alive) return;
         
         let direction = null;
         
+        // Keyboard input
         if (this.cursors.up.isDown || this.wasd.W.isDown) {
             direction = 'up';
         } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
@@ -106,6 +126,12 @@ class GameManager {
             direction = 'left';
         } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
             direction = 'right';
+        }
+        
+        // Mouse/touch input has priority over keyboard
+        if (this.mouseDirection) {
+            direction = this.mouseDirection;
+            this.mouseDirection = null; // Reset after using
         }
         
         if (direction && direction !== this.lastDirection) {
@@ -120,6 +146,205 @@ class GameManager {
         const head = this.currentPlayer.body[0];
         if (head) {
             this.gameScene.cameras.main.centerOn(head.x, head.y);
+        }
+    }
+
+    setupMouseControls() {
+        // Variables para control del mouse
+        this.mouseDirection = null;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        this.mouseMoveThreshold = 30; // Píxeles mínimos para detectar movimiento
+        
+        // Eventos del mouse
+        this.gameScene.input.on('pointermove', (pointer) => {
+            this.handleMouseMove(pointer);
+        });
+        
+        // Eventos táctiles para móviles y clic
+        this.gameScene.input.on('pointerdown', (pointer) => {
+            this.lastMouseX = pointer.x;
+            this.lastMouseY = pointer.y;
+            this.handleQuickDirection(pointer);
+        });
+        
+        // Detectar swipe en móviles
+        this.gameScene.input.on('pointerup', (pointer) => {
+            this.handleSwipe(pointer);
+        });
+        
+        // Limpiar indicador cuando el mouse sale del área
+        this.gameScene.input.on('pointerout', () => {
+            if (this.mouseIndicator) {
+                this.mouseIndicator.clear();
+            }
+        });
+    }
+    
+    handleMouseMove(pointer) {
+        if (!this.connected || !this.gameStarted || !this.currentPlayer || !this.currentPlayer.alive) return;
+        
+        // Obtener la posición de la cabeza de la serpiente
+        if (!this.currentPlayer.body || this.currentPlayer.body.length === 0) return;
+        
+        const head = this.currentPlayer.body[0];
+        if (!head) return;
+        
+        // Convertir coordenadas del mouse a coordenadas del mundo del juego
+        const camera = this.gameScene.cameras.main;
+        const worldX = pointer.x + camera.scrollX;
+        const worldY = pointer.y + camera.scrollY;
+        
+        // Calcular la dirección hacia donde apunta el mouse
+        const deltaX = worldX - (head.x + 10); // +10 para centrar
+        const deltaY = worldY - (head.y + 10);
+        
+        // Actualizar indicador visual
+        this.updateMouseIndicator(pointer, deltaX, deltaY);
+        
+        // Solo cambiar dirección si el movimiento es significativo
+        if (Math.abs(deltaX) > this.mouseMoveThreshold || Math.abs(deltaY) > this.mouseMoveThreshold) {
+            let newDirection = null;
+            
+            // Determinar la dirección principal
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Movimiento horizontal
+                newDirection = deltaX > 0 ? 'right' : 'left';
+            } else {
+                // Movimiento vertical
+                newDirection = deltaY > 0 ? 'down' : 'up';
+            }
+            
+            // Solo cambiar si es diferente a la dirección actual
+            if (newDirection && newDirection !== this.lastDirection) {
+                this.mouseDirection = newDirection;
+            }
+        }
+    }
+    
+    updateMouseIndicator(pointer, deltaX, deltaY) {
+        if (!this.mouseIndicator) return;
+        
+        this.mouseIndicator.clear();
+        
+        // Solo mostrar indicador si el mouse está lo suficientemente lejos
+        if (Math.abs(deltaX) > 20 || Math.abs(deltaY) > 20) {
+            const indicatorSize = 8;
+            let color = 0x00ff88;
+            
+            // Determinar color basado en la dirección
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                color = deltaX > 0 ? 0x00ff88 : 0xff6b6b; // Verde para derecha, rojo para izquierda
+            } else {
+                color = deltaY > 0 ? 0xfbbf24 : 0x4fc3f7; // Amarillo para abajo, azul para arriba
+            }
+            
+            // Dibujar flecha en la posición del mouse
+            this.mouseIndicator.fillStyle(color);
+            this.mouseIndicator.fillCircle(pointer.x, pointer.y, indicatorSize);
+            
+            // Dibujar dirección
+            this.mouseIndicator.lineStyle(3, color);
+            let endX = pointer.x;
+            let endY = pointer.y;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                endX += deltaX > 0 ? 20 : -20;
+            } else {
+                endY += deltaY > 0 ? 20 : -20;
+            }
+            
+            this.mouseIndicator.lineBetween(pointer.x, pointer.y, endX, endY);
+            
+            // Punta de flecha
+            this.mouseIndicator.fillTriangle(
+                endX, endY,
+                endX + (deltaX > 0 ? -8 : 8), endY + (deltaY > 0 ? -4 : 4),
+                endX + (deltaX > 0 ? -8 : 8), endY + (deltaY > 0 ? 4 : -4)
+            );
+        }
+    }
+    
+    handleQuickDirection(pointer) {
+        if (!this.connected || !this.gameStarted || !this.currentPlayer || !this.currentPlayer.alive) return;
+        
+        // Obtener la posición de la cabeza de la serpiente
+        if (!this.currentPlayer.body || this.currentPlayer.body.length === 0) return;
+        
+        const head = this.currentPlayer.body[0];
+        if (!head) return;
+        
+        // Convertir coordenadas del clic a coordenadas del mundo del juego
+        const camera = this.gameScene.cameras.main;
+        const worldX = pointer.x + camera.scrollX;
+        const worldY = pointer.y + camera.scrollY;
+        
+        // Calcular la dirección hacia donde se hizo clic
+        const deltaX = worldX - (head.x + 10);
+        const deltaY = worldY - (head.y + 10);
+        
+        // Cambio inmediato de dirección con clic
+        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+            let clickDirection = null;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                clickDirection = deltaX > 0 ? 'right' : 'left';
+            } else {
+                clickDirection = deltaY > 0 ? 'down' : 'up';
+            }
+            
+            if (clickDirection && clickDirection !== this.lastDirection) {
+                this.mouseDirection = clickDirection;
+                
+                // Efecto visual del clic
+                this.showClickEffect(pointer.x, pointer.y);
+            }
+        }
+    }
+    
+    showClickEffect(x, y) {
+        // Crear un efecto visual temporal para el clic
+        const clickEffect = this.gameScene.add.graphics();
+        clickEffect.setScrollFactor(0);
+        clickEffect.fillStyle(0x00ff88, 0.8);
+        clickEffect.fillCircle(x, y, 15);
+        
+        // Animar el efecto
+        this.gameScene.tweens.add({
+            targets: clickEffect,
+            scaleX: 2,
+            scaleY: 2,
+            alpha: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                clickEffect.destroy();
+            }
+        });
+    }
+
+    handleSwipe(pointer) {
+        if (!this.connected || !this.gameStarted || !this.currentPlayer || !this.currentPlayer.alive) return;
+        
+        const deltaX = pointer.x - this.lastMouseX;
+        const deltaY = pointer.y - this.lastMouseY;
+        const minSwipeDistance = 50; // Distancia mínima para considerar un swipe
+        
+        // Solo procesar si el swipe es lo suficientemente largo
+        if (Math.abs(deltaX) > minSwipeDistance || Math.abs(deltaY) > minSwipeDistance) {
+            let swipeDirection = null;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Swipe horizontal
+                swipeDirection = deltaX > 0 ? 'right' : 'left';
+            } else {
+                // Swipe vertical
+                swipeDirection = deltaY > 0 ? 'down' : 'up';
+            }
+            
+            if (swipeDirection && swipeDirection !== this.lastDirection) {
+                this.mouseDirection = swipeDirection;
+            }
         }
     }
 
