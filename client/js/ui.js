@@ -83,6 +83,8 @@ class UIManager {
         this.playButton.addEventListener('click', () => this.startGame());
         document.getElementById('spectateButton').addEventListener('click', () => this.spectateGame());
         document.getElementById('leaderboardButton').addEventListener('click', () => this.showLeaderboard());
+        document.getElementById('skinLabButton').addEventListener('click', () => this.openSkinLab());
+        document.getElementById('wearLabButton').addEventListener('click', () => this.openWearLab());
         document.getElementById('settingsButton').addEventListener('click', () => this.showSettings());
         
         // Botones del panel de muerte
@@ -312,6 +314,20 @@ class UIManager {
 
     showLeaderboard() {
         this.showNotification('Leaderboard global próximamente...', 'info');
+    }
+
+    openSkinLab() {
+        if (window.skinLab) {
+            window.skinLab.openSkinLab();
+        }
+    }
+
+    openWearLab() {
+        if (window.wearLab) {
+            window.wearLab.openWearLab();
+        } else {
+            this.showNotification('WEARLAB próximamente...', 'info');
+        }
     }
 
     showSettings() {
