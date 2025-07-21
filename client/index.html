@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Snake Game</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Wormate.io Clone - Multiplayer Snake Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,402 +14,640 @@
         }
 
         body {
-            font-family: 'Orbitron', monospace;
-            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
             overflow: hidden;
             height: 100vh;
+            position: relative;
         }
 
-        .container {
+        /* Fondo animado estilo Wormate.io */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        /* Partículas flotantes */
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 6s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        /* Contenedor principal */
+        .main-container {
             display: flex;
             height: 100vh;
+            position: relative;
         }
 
-        .sidebar {
-            width: 300px;
+        /* Menú principal estilo Wormate.io */
+        .main-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            border-right: 2px solid #00ff88;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .game-area {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            z-index: 1000;
+            transition: all 0.5s ease;
+        }
+
+        .main-menu.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .game-logo {
+            font-family: 'Fredoka One', cursive;
+            font-size: 4rem;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease-in-out infinite;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .game-subtitle {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            margin-top: 10px;
+        }
+
+        /* Selector de skin estilo Wormate.io */
+        .skin-selector {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .skin-preview {
+            width: 80px;
+            height: 80px;
+            margin: 0 20px;
             position: relative;
         }
 
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .logo h1 {
-            font-size: 24px;
-            font-weight: 900;
-            color: #00ff88;
-            text-shadow: 0 0 20px #00ff88;
-            margin-bottom: 5px;
-        }
-
-        .logo p {
-            font-size: 12px;
-            color: #888;
-        }
-
-        .auth-section {
-            margin-bottom: 30px;
-        }
-
-        .auth-form {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 12px;
-            color: #00ff88;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #333;
-            border-radius: 5px;
-            background: rgba(0, 0, 0, 0.5);
-            color: #fff;
-            font-family: 'Orbitron', monospace;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #00ff88;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-        }
-
-        .btn {
-            padding: 10px 20px;
+        .skin-arrow {
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            border-radius: 5px;
-            background: linear-gradient(45deg, #00ff88, #00cc6a);
-            color: #000;
-            font-weight: bold;
+            color: white;
+            font-size: 1.5rem;
+            padding: 10px 15px;
+            border-radius: 50%;
             cursor: pointer;
-            transition: all 0.3s;
-            font-family: 'Orbitron', monospace;
-            width: 100%;
-            margin-bottom: 10px;
+            transition: all 0.3s ease;
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        .skin-arrow:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        /* Campo de nombre estilo Wormate.io */
+        .name-input-container {
+            margin-bottom: 30px;
         }
 
-        .btn-secondary {
-            background: linear-gradient(45deg, #333, #555);
-            color: #fff;
+        .name-input {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 15px 25px;
+            font-size: 1.2rem;
+            border-radius: 25px;
+            text-align: center;
+            color: #333;
+            font-weight: 600;
+            width: 300px;
+            outline: none;
+            transition: all 0.3s ease;
         }
 
-        .stats-section {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
+        .name-input:focus {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
         }
 
-        .stats-section h3 {
-            color: #00ff88;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .stat-item {
+        /* Botones estilo Wormate.io */
+        .menu-buttons {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 12px;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
         }
 
-        .stat-value {
-            color: #00ff88;
-            font-weight: bold;
+        .play-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            color: white;
+            font-size: 1.4rem;
+            font-weight: 700;
+            padding: 18px 50px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
         }
 
-        .leaderboard {
+        .play-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6);
+        }
+
+        .secondary-button {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .leaderboard h3 {
-            color: #00ff88;
+        .secondary-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* HUD del juego */
+        .game-hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: none;
+        }
+
+        .game-hud.active {
+            display: block;
+        }
+
+        .hud-stats {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
             margin-bottom: 15px;
-            font-size: 14px;
         }
 
-        .leaderboard-item {
+        .score-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        .length-display {
+            font-size: 1rem;
+            color: #4ecdc4;
+            margin-top: 5px;
+        }
+
+        /* Leaderboard en vivo */
+        .live-leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            min-width: 250px;
+            z-index: 100;
+            display: none;
+        }
+
+        .live-leaderboard.active {
+            display: block;
+        }
+
+        .leaderboard-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .leaderboard-entry {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 8px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 12px;
         }
 
-        .leaderboard-item:last-child {
+        .leaderboard-entry:last-child {
             border-bottom: none;
         }
 
-        .rank {
-            font-weight: bold;
+        .player-rank {
+            font-weight: 700;
+            color: #ffd700;
+            width: 30px;
+        }
+
+        .player-name {
+            flex: 1;
+            margin-left: 10px;
+            color: #fff;
+        }
+
+        .player-score {
             color: #00ff88;
-            width: 20px;
+            font-weight: 600;
         }
 
-        .game-canvas {
-            border: 3px solid #00ff88;
+        /* Área del juego */
+        .game-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #gameCanvas {
             border-radius: 10px;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
         }
 
-        .game-controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 10px;
-            padding: 15px;
-            min-width: 200px;
-        }
-
-        .game-info {
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .score {
-            font-size: 18px;
-            color: #00ff88;
-            font-weight: bold;
-        }
-
-        .players-online {
-            font-size: 12px;
-            color: #888;
-        }
-
-        .controls-help {
+        /* Controles móviles */
+        .mobile-controls {
             position: absolute;
             bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 100;
+        }
+
+        .mobile-controls.active {
+            display: flex;
+        }
+
+        .control-pad {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.7);
             padding: 15px;
-            font-size: 12px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
         }
 
-        .controls-help h4 {
-            color: #00ff88;
-            margin-bottom: 10px;
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .control-item {
-            margin-bottom: 5px;
+        .control-btn:hover, .control-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
         }
 
-        .hidden {
-            display: none !important;
+        .control-btn.empty {
+            background: transparent;
+            cursor: default;
         }
 
-        .loading {
+        /* Panel de muerte estilo Wormate.io */
+        .death-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 20px;
             text-align: center;
-            padding: 50px;
+            z-index: 1001;
+            display: none;
+            backdrop-filter: blur(10px);
         }
 
-        .loading i {
-            font-size: 48px;
+        .death-panel.active {
+            display: block;
+            animation: fadeInScale 0.5s ease;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .death-title {
+            font-size: 2rem;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .final-stats {
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .stat-label {
+            color: #a0a0a0;
+        }
+
+        .stat-value {
             color: #00ff88;
-            animation: spin 2s linear infinite;
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-menu {
+                padding: 20px;
+            }
+
+            .game-logo {
+                font-size: 2.5rem;
+            }
+
+            .name-input {
+                width: 250px;
+                font-size: 1rem;
+            }
+
+            .skin-selector {
+                margin: 20px 0;
+                padding: 15px;
+            }
+
+            .mobile-controls {
+                display: flex;
+            }
+
+            .live-leaderboard {
+                top: auto;
+                bottom: 20px;
+                right: 20px;
+                min-width: 200px;
+            }
+        }
+
+        /* Efectos de carga */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
         }
 
-        .message {
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-size: 12px;
+        /* Notificaciones estilo Wormate.io */
+        .notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            z-index: 1002;
+            opacity: 0;
+            transition: all 0.3s ease;
         }
 
-        .message.error {
-            background: rgba(255, 0, 0, 0.2);
-            border: 1px solid #ff0000;
-            color: #ff6b6b;
-        }
-
-        .message.success {
-            background: rgba(0, 255, 0, 0.2);
-            border: 1px solid #00ff00;
-            color: #00ff88;
-        }
-
-        .message.info {
-            background: rgba(0, 150, 255, 0.2);
-            border: 1px solid #0096ff;
-            color: #4fc3f7;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: auto;
-                max-height: 200px;
-            }
-            
-            .game-controls {
-                position: relative;
-                top: auto;
-                right: auto;
-                margin: 20px 0;
-            }
+        .notification.show {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="logo">
-                <h1><i class="fas fa-gamepad"></i> SNAKE.IO</h1>
-                <p>Multiplayer Arena</p>
+    <!-- Fondo animado -->
+    <div class="animated-bg"></div>
+
+    <!-- Contenedor principal -->
+    <div class="main-container">
+        <!-- Menú principal estilo Wormate.io -->
+        <div class="main-menu" id="mainMenu">
+            <div class="logo-container">
+                <h1 class="game-logo">Wormate.io</h1>
+                <p class="game-subtitle">¡El juego de serpientes más adictivo!</p>
             </div>
 
-            <div id="auth-section" class="auth-section">
-                <div id="login-form" class="auth-form">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">Login</h3>
-                    <div id="auth-message"></div>
-                    <div class="form-group">
-                        <label for="login-username">Username/Email</label>
-                        <input type="text" id="login-username" placeholder="Enter username or email">
-                    </div>
-                    <div class="form-group">
-                        <label for="login-password">Password</label>
-                        <input type="password" id="login-password" placeholder="Enter password">
-                    </div>
-                    <button id="login-btn" class="btn">Login</button>
-                    <button id="show-register-btn" class="btn btn-secondary">Create Account</button>
-                    <button id="guest-play-btn" class="btn btn-secondary">Play as Guest</button>
+            <!-- Selector de skin -->
+            <div class="skin-selector">
+                <button class="skin-arrow" id="prevSkin">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="skin-preview" id="skinPreview">
+                    <!-- La serpiente se renderizará aquí -->
                 </div>
-
-                <div id="register-form" class="auth-form hidden">
-                    <h3 style="color: #00ff88; margin-bottom: 15px;">Register</h3>
-                    <div class="form-group">
-                        <label for="register-username">Username</label>
-                        <input type="text" id="register-username" placeholder="Choose username">
-                    </div>
-                    <div class="form-group">
-                        <label for="register-email">Email</label>
-                        <input type="email" id="register-email" placeholder="Enter email">
-                    </div>
-                    <div class="form-group">
-                        <label for="register-password">Password</label>
-                        <input type="password" id="register-password" placeholder="Choose password">
-                    </div>
-                    <button id="register-btn" class="btn">Register</button>
-                    <button id="show-login-btn" class="btn btn-secondary">Back to Login</button>
-                </div>
-
-                <div id="user-info" class="auth-form hidden">
-                    <h3 id="user-welcome" style="color: #00ff88; margin-bottom: 15px;"></h3>
-                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
-                </div>
+                <button class="skin-arrow" id="nextSkin">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
 
-            <div id="user-stats" class="stats-section hidden">
-                <h3><i class="fas fa-chart-line"></i> Your Stats</h3>
-                <div class="stat-item">
-                    <span>Best Score:</span>
-                    <span id="best-score" class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                    <span>Games Played:</span>
-                    <span id="games-played" class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                    <span>Total Score:</span>
-                    <span id="total-score" class="stat-value">0</span>
-                </div>
+            <!-- Campo de nombre -->
+            <div class="name-input-container">
+                <input type="text" class="name-input" id="playerName" placeholder="Ingresa tu nombre" maxlength="15">
             </div>
 
-            <div class="leaderboard">
-                <h3><i class="fas fa-trophy"></i> Leaderboard</h3>
-                <div id="leaderboard-list">
-                    <div class="loading">
-                        <i class="fas fa-spinner"></i>
-                        <p>Loading...</p>
-                    </div>
+            <!-- Botones del menú -->
+            <div class="menu-buttons">
+                <button class="play-button" id="playButton">
+                    <i class="fas fa-play"></i> ¡JUGAR!
+                </button>
+                <button class="secondary-button" id="spectateButton">
+                    <i class="fas fa-eye"></i> Spectate
+                </button>
+                <button class="secondary-button" id="leaderboardButton">
+                    <i class="fas fa-trophy"></i> Leaderboard
+                </button>
+                <button class="secondary-button" id="settingsButton">
+                    <i class="fas fa-cog"></i> Configuración
+                </button>
+            </div>
+        </div>
+
+        <!-- HUD del juego -->
+        <div class="game-hud" id="gameHud">
+            <div class="hud-stats">
+                <div class="score-display">
+                    <i class="fas fa-star"></i> Score: <span id="currentScore">0</span>
+                </div>
+                <div class="length-display">
+                    <i class="fas fa-ruler"></i> Length: <span id="currentLength">1</span>
                 </div>
             </div>
         </div>
 
+        <!-- Leaderboard en vivo -->
+        <div class="live-leaderboard" id="liveLeaderboard">
+            <div class="leaderboard-title">
+                <i class="fas fa-crown"></i> Top Players
+            </div>
+            <div id="leaderboardContent">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Controles móviles -->
+        <div class="mobile-controls" id="mobileControls">
+            <div class="control-pad">
+                <div class="control-btn empty"></div>
+                <div class="control-btn" data-direction="up">
+                    <i class="fas fa-chevron-up"></i>
+                </div>
+                <div class="control-btn empty"></div>
+                <div class="control-btn" data-direction="left">
+                    <i class="fas fa-chevron-left"></i>
+                </div>
+                <div class="control-btn empty"></div>
+                <div class="control-btn" data-direction="right">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                <div class="control-btn empty"></div>
+                <div class="control-btn" data-direction="down">
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="control-btn empty"></div>
+            </div>
+        </div>
+
+        <!-- Área del juego -->
         <div class="game-area">
-            <div id="game-container">
-                <div id="game-loading" class="loading">
-                    <i class="fas fa-spinner"></i>
-                    <p>Connecting to game server...</p>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <!-- Panel de muerte -->
+        <div class="death-panel" id="deathPanel">
+            <div class="death-title">
+                <i class="fas fa-skull"></i> ¡Game Over!
+            </div>
+            <div class="final-stats" id="finalStats">
+                <div class="stat-item">
+                    <span class="stat-label">Score Final:</span>
+                    <span class="stat-value" id="finalScore">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Longitud Máxima:</span>
+                    <span class="stat-value" id="finalLength">1</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tiempo Jugado:</span>
+                    <span class="stat-value" id="finalTime">0s</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Ranking:</span>
+                    <span class="stat-value" id="finalRank">#1</span>
                 </div>
             </div>
-
-            <div id="game-controls" class="game-controls hidden">
-                <div class="game-info">
-                    <div class="score">Score: <span id="current-score">0</span></div>
-                    <div class="players-online">Players: <span id="players-count">0</span></div>
-                </div>
-                <button id="start-game-btn" class="btn">Start Game</button>
-                <button id="leave-game-btn" class="btn btn-secondary">Leave Game</button>
-            </div>
-
-            <div class="controls-help">
-                <h4><i class="fas fa-gamepad"></i> Controles</h4>
-                <div class="control-item"><strong>🖱️ Mouse</strong> - Mueve hacia donde apuntes</div>
-                <div class="control-item"><strong>📱 Touch/Swipe</strong> - Desliza para mover</div>
-                <div class="control-item"><strong>WASD</strong> o <strong>Flechas</strong> - Mover</div>
-                <div class="control-item"><strong>Clic</strong> - Cambio rápido de dirección</div>
+            <div class="menu-buttons">
+                <button class="play-button" id="playAgainButton">
+                    <i class="fas fa-redo"></i> ¡JUGAR DE NUEVO!
+                </button>
+                <button class="secondary-button" id="mainMenuButton">
+                    <i class="fas fa-home"></i> Menú Principal
+                </button>
             </div>
         </div>
     </div>
 
+    <!-- Notificaciones -->
+    <div class="notification" id="notification"></div>
+
+    <!-- Scripts -->
     <script src="https://unpkg.com/phaser@3.70.0/dist/phaser.min.js"></script>
-    <script src="https://unpkg.com/colyseus.js@^0.15.0/dist/colyseus.js"></script>
+    <script src="https://unpkg.com/colyseus.js@0.15.0/dist/colyseus.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
+
+    <script>
+        // Crear partículas flotantes
+        function createFloatingParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = Math.random() * 4 + 2 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+                document.querySelector('.animated-bg').appendChild(particle);
+            }
+        }
+
+        // Inicializar partículas al cargar
+        document.addEventListener('DOMContentLoaded', createFloatingParticles);
+    </script>
 </body>
 </html>

@@ -40,8 +40,14 @@ class SnakeRoom extends Room {
     player.name = options.name || `Player${Math.floor(Math.random() * 1000)}`;
     player.score = 0;
     player.alive = true;
-    player.color = this.getRandomColor();
+    player.color = options.skin ? options.skin.color : this.getRandomColor();
     player.direction = "right";
+    
+    // Guardar información del skin
+    if (options.skin) {
+      player.skinName = options.skin.name;
+      player.skinPattern = options.skin.pattern;
+    }
     
     // Initialize snake body
     const startX = Math.floor(Math.random() * (this.state.gameWidth - 100)) + 50;

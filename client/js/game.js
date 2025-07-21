@@ -9,6 +9,19 @@ class GameManager {
         this.players = new Map();
         this.foods = [];
         this.gameStarted = false;
+        this.currentPlayerSkin = null;
+        this.currentPlayerName = null;
+        this.gameStats = {
+            score: 0,
+            length: 1,
+            foodEaten: 0,
+            timeAlive: 0,
+            startTime: null
+        };
+        this.mouseDirection = null;
+        this.lastMouseAngle = null;
+        this.swipeStartX = null;
+        this.swipeStartY = null;
         
         this.initializeGame();
         this.initializeEventListeners();
@@ -17,10 +30,10 @@ class GameManager {
     initializeGame() {
         const config = {
             type: Phaser.AUTO,
-            width: 800,
-            height: 600,
-            parent: 'game-container',
-            backgroundColor: '#0a0a0a',
+            width: window.innerWidth,
+            height: window.innerHeight,
+            parent: 'gameCanvas',
+            backgroundColor: '#1a1a2e',
             scene: {
                 preload: this.preload.bind(this),
                 create: this.create.bind(this),
@@ -31,6 +44,10 @@ class GameManager {
                 arcade: {
                     debug: false
                 }
+            },
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                autoCenter: Phaser.Scale.CENTER_BOTH
             }
         };
 
@@ -38,8 +55,13 @@ class GameManager {
     }
 
     initializeEventListeners() {
-        document.getElementById('start-game-btn').addEventListener('click', () => this.startGame());
-        document.getElementById('leave-game-btn').addEventListener('click', () => this.disconnect());
+        // Los eventos ahora los maneja UIManager
+        // Agregar listener para redimensionamiento
+        window.addEventListener('resize', () => {
+            if (this.game) {
+                this.game.scale.resize(window.innerWidth, window.innerHeight);
+            }
+        });
     }
 
     preload() {
@@ -341,35 +363,37 @@ class GameManager {
         }
     }
 
-    async connectToGame() {
+    async connect() {
         try {
-            document.getElementById('game-loading').classList.remove('hidden');
-            document.getElementById('game-controls').classList.add('hidden');
-            
             this.client = new Colyseus.Client('ws://localhost:3000');
             
-            const user = window.authManager.getCurrentUser();
             const joinOptions = {
-                name: user ? user.username : 'Guest' + Math.floor(Math.random() * 1000)
+                name: this.currentPlayerName,
+                skin: this.currentPlayerSkin
             };
             
             this.room = await this.client.joinOrCreate('snake_room', joinOptions);
             this.connected = true;
             
-            this.setupRoomEventListeners();
+            console.log('Connected to room:', this.room.sessionId);
             
-            document.getElementById('game-loading').classList.add('hidden');
-            document.getElementById('game-controls').classList.remove('hidden');
+            // Notificar a UIManager
+            if (window.uiManager) {
+                window.uiManager.onGameStateChange('connected');
+            }
+            
+            this.setupRoomEventListeners();
             
             console.log('Connected to game room');
             
         } catch (error) {
             console.error('Failed to connect to game:', error);
-            document.getElementById('game-loading').innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Failed to connect to game server</p>
-                <button class="btn" onclick="window.gameManager.connectToGame()">Retry</button>
-            `;
+            this.connected = false;
+            
+            if (window.uiManager) {
+                window.uiManager.showNotification('Error de conexión al servidor', 'error');
+                window.uiManager.showMainMenu();
+            }
         }
     }
 
@@ -381,15 +405,38 @@ class GameManager {
         this.room.state.players.onAdd = (player, sessionId) => {
             console.log('Player joined:', player.name);
             this.addPlayer(player, sessionId);
+            this.updateLeaderboard();
         };
         
         this.room.state.players.onRemove = (player, sessionId) => {
             console.log('Player left:', player.name);
             this.removePlayer(sessionId);
+            
+            // Si es el jugador actual que murió
+            if (sessionId === this.room.sessionId) {
+                if (window.uiManager) {
+                    window.uiManager.onGameStateChange('died');
+                }
+            }
+            
+            this.updateLeaderboard();
         };
         
         this.room.state.players.onChange = (player, sessionId) => {
             this.updatePlayer(player, sessionId);
+            
+            // Actualizar stats del jugador actual
+            if (sessionId === this.room.sessionId) {
+                this.gameStats.score = player.score || 0;
+                this.gameStats.length = player.body ? player.body.length : 1;
+                
+                if (window.uiManager) {
+                    window.uiManager.updateScore(this.gameStats.score);
+                    window.uiManager.updateLength(this.gameStats.length);
+                }
+            }
+            
+            this.updateLeaderboard();
         };
         
         this.room.state.foods.onAdd = (food, index) => {
@@ -400,6 +447,9 @@ class GameManager {
             // Crear efecto de partículas cuando se come la comida
             this.createFoodEatEffect(food.x + 8, food.y + 8);
             this.removeFood(index);
+            
+            // Incrementar contador de comida comida
+            this.gameStats.foodEaten++;
         };
         
         this.room.onMessage('game_started', () => {
@@ -874,9 +924,22 @@ class GameManager {
         graphics.glowRing = glowRing;
     }
 
-    startGame() {
-        if (this.connected && this.room) {
-            this.room.send('start_game');
+    // Método llamado desde UIManager
+    startGame(playerName, skin) {
+        this.currentPlayerName = playerName;
+        this.currentPlayerSkin = skin;
+        this.gameStats.startTime = Date.now();
+        this.gameStats.score = 0;
+        this.gameStats.length = 1;
+        this.gameStats.foodEaten = 0;
+        
+        this.connect();
+    }
+
+    // Método para establecer dirección desde controles móviles
+    setDirection(direction) {
+        if (this.room && this.gameStarted) {
+            this.room.send('player_move', { direction });
         }
     }
 
@@ -946,11 +1009,32 @@ class GameManager {
             this.foodGroup.clear(true, true);
         }
         
-        document.getElementById('game-controls').classList.add('hidden');
-        document.getElementById('game-loading').innerHTML = `
-            <i class="fas fa-gamepad"></i>
-            <p>Disconnected from game</p>
-        `;
-        document.getElementById('game-loading').classList.remove('hidden');
+        // Notificar a UIManager
+        if (window.uiManager) {
+            window.uiManager.onGameStateChange('disconnected');
+        }
+        
+        console.log('Disconnected from game');
+    }
+
+    updateLeaderboard() {
+        if (!this.room || !this.room.state) return;
+        
+        const playersArray = [];
+        this.room.state.players.forEach((player, sessionId) => {
+            playersArray.push({
+                name: player.name || 'Anónimo',
+                score: player.score || 0,
+                length: player.body ? player.body.length : 1,
+                sessionId: sessionId
+            });
+        });
+        
+        // Ordenar por score descendente
+        playersArray.sort((a, b) => b.score - a.score);
+        
+        if (window.uiManager) {
+            window.uiManager.updateLeaderboard(playersArray);
+        }
     }
 }
