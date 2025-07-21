@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Snake Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', monospace;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-right: 2px solid #00ff88;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 900;
+            color: #00ff88;
+            text-shadow: 0 0 20px #00ff88;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .auth-section {
+            margin-bottom: 30px;
+        }
+
+        .auth-form {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #00ff88;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Orbitron', monospace;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #333, #555);
+            color: #fff;
+        }
+
+        .stats-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stats-section h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .leaderboard {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .leaderboard h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #00ff88;
+            width: 20px;
+        }
+
+        .game-canvas {
+            border: 3px solid #00ff88;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .game-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            min-width: 200px;
+        }
+
+        .game-info {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .score {
+            font-size: 18px;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .players-online {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .controls-help {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 12px;
+        }
+
+        .controls-help h4 {
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+
+        .control-item {
+            margin-bottom: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+
+        .loading i {
+            font-size: 48px;
+            color: #00ff88;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .message.error {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0000;
+            color: #ff6b6b;
+        }
+
+        .message.success {
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff88;
+        }
+
+        .message.info {
+            background: rgba(0, 150, 255, 0.2);
+            border: 1px solid #0096ff;
+            color: #4fc3f7;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 200px;
+            }
+            
+            .game-controls {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin: 20px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="logo">
+                <h1><i class="fas fa-gamepad"></i> SNAKE.IO</h1>
+                <p>Multiplayer Arena</p>
+            </div>
+
+            <div id="auth-section" class="auth-section">
+                <div id="login-form" class="auth-form">
+                    <h3 style="color: #00ff88; margin-bottom: 15px;">Login</h3>
+                    <div id="auth-message"></div>
+                    <div class="form-group">
+                        <label for="login-username">Username/Email</label>
+                        <input type="text" id="login-username" placeholder="Enter username or email">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter password">
+                    </div>
+                    <button id="login-btn" class="btn">Login</button>
+                    <button id="show-register-btn" class="btn btn-secondary">Create Account</button>
+                    <button id="guest-play-btn" class="btn btn-secondary">Play as Guest</button>
+                </div>
+
+                <div id="register-form" class="auth-form hidden">
+                    <h3 style="color: #00ff88; margin-bottom: 15px;">Register</h3>
+                    <div class="form-group">
+                        <label for="register-username">Username</label>
+                        <input type="text" id="register-username" placeholder="Choose username">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="Enter email">
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" placeholder="Choose password">
+                    </div>
+                    <button id="register-btn" class="btn">Register</button>
+                    <button id="show-login-btn" class="btn btn-secondary">Back to Login</button>
+                </div>
+
+                <div id="user-info" class="auth-form hidden">
+                    <h3 id="user-welcome" style="color: #00ff88; margin-bottom: 15px;"></h3>
+                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+                </div>
+            </div>
+
+            <div id="user-stats" class="stats-section hidden">
+                <h3><i class="fas fa-chart-line"></i> Your Stats</h3>
+                <div class="stat-item">
+                    <span>Best Score:</span>
+                    <span id="best-score" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Games Played:</span>
+                    <span id="games-played" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Total Score:</span>
+                    <span id="total-score" class="stat-value">0</span>
+                </div>
+            </div>
+
+            <div class="leaderboard">
+                <h3><i class="fas fa-trophy"></i> Leaderboard</h3>
+                <div id="leaderboard-list">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                        <p>Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div id="game-container">
+                <div id="game-loading" class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Connecting to game server...</p>
+                </div>
+            </div>
+
+            <div id="game-controls" class="game-controls hidden">
+                <div class="game-info">
+                    <div class="score">Score: <span id="current-score">0</span></div>
+                    <div class="players-online">Players: <span id="players-count">0</span></div>
+                </div>
+                <button id="start-game-btn" class="btn">Start Game</button>
+                <button id="leave-game-btn" class="btn btn-secondary">Leave Game</button>
+            </div>
+
+            <div class="controls-help">
+                <h4><i class="fas fa-keyboard"></i> Controls</h4>
+                <div class="control-item"><strong>WASD</strong> or <strong>Arrow Keys</strong> - Move</div>
+                <div class="control-item"><strong>Space</strong> - Boost</div>
+                <div class="control-item"><strong>Mouse Wheel</strong> - Zoom</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/phaser@3.70.0/dist/phaser.min.js"></script>
+    <script src="https://unpkg.com/colyseus.js@^0.15.0/dist/colyseus.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

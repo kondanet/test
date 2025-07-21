@@ -1,0 +1,24 @@
+{
+  "name": "snake-client",
+  "version": "1.0.0",
+  "description": "Snake.io Multiplayer Game Client using PhaserJS",
+  "main": "index.html",
+  "scripts": {
+    "serve": "python3 -m http.server 8080",
+    "serve-win": "python -m http.server 8080",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "snake",
+    "game",
+    "phaser",
+    "multiplayer",
+    "client"
+  ],
+  "author": "Snake.io Team",
+  "license": "MIT",
+  "dependencies": {
+    "phaser": "^3.70.0",
+    "colyseus.js": "^0.15.0"
+  }
+}
