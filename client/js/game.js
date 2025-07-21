@@ -43,25 +43,15 @@ class GameManager {
     }
 
     preload() {
-        // Create simple colored rectangles for snake segments and food
-        this.game.scene.scenes[0].add.graphics()
-            .fillStyle(0x00ff88)
-            .fillRect(0, 0, 20, 20)
-            .generateTexture('snake-head', 20, 20);
-
-        this.game.scene.scenes[0].add.graphics()
-            .fillStyle(0x00cc6a)
-            .fillRect(0, 0, 20, 20)
-            .generateTexture('snake-body', 20, 20);
-
-        this.game.scene.scenes[0].add.graphics()
-            .fillStyle(0xff6b6b)
-            .fillRect(0, 0, 16, 16)
-            .generateTexture('food', 16, 16);
+        // No necesitamos crear texturas aquí, las crearemos dinámicamente
+        // para tener el estilo de Wormate.io
     }
 
     create() {
         this.gameScene = this.game.scene.scenes[0];
+        
+        // Crear fondo estilo Wormate.io
+        this.createWormateBackground();
         
         // Create groups for game objects
         this.snakeGroup = this.gameScene.add.group();
@@ -95,6 +85,9 @@ class GameManager {
             padding: { x: 12, y: 8 },
             align: 'left'
         }).setScrollFactor(0);
+        
+        // Sistema de partículas para efectos
+        this.particleEmitters = [];
         
         // Crear indicador de dirección del mouse
         this.mouseIndicator = this.gameScene.add.graphics();
@@ -404,6 +397,8 @@ class GameManager {
         };
         
         this.room.state.foods.onRemove = (food, index) => {
+            // Crear efecto de partículas cuando se come la comida
+            this.createFoodEatEffect(food.x + 8, food.y + 8);
             this.removeFood(index);
         };
         
@@ -458,34 +453,184 @@ class GameManager {
         const playerData = this.players.get(sessionId);
         if (!playerData) return;
         
-        // Clear existing sprites
-        playerData.sprites.forEach(sprite => sprite.destroy());
+        // Clear existing sprites and effects
+        playerData.sprites.forEach(sprite => {
+            if (sprite.glowRing) {
+                sprite.glowRing.destroy();
+            }
+            sprite.destroy();
+        });
         playerData.sprites = [];
         
-        // Create new sprites for snake body
-        player.body.forEach((segment, index) => {
-            const isHead = index === 0;
-            const texture = isHead ? 'snake-head' : 'snake-body';
-            
-            const sprite = this.gameScene.add.image(segment.x + 10, segment.y + 10, texture);
-            
-            // Set color based on player
-            if (player.color) {
-                sprite.setTint(parseInt(player.color.replace('#', '0x')));
-            }
-            
-            // Make current player's snake more visible
-            if (sessionId === this.room.sessionId) {
-                sprite.setAlpha(player.alive ? 1.0 : 0.5);
-            } else {
-                sprite.setAlpha(player.alive ? 0.8 : 0.3);
-            }
-            
-            playerData.sprites.push(sprite);
-            this.snakeGroup.add(sprite);
-        });
+        // Crear serpiente estilo Wormate.io
+        this.createWormateSnake(player, sessionId, playerData);
         
         playerData.player = player;
+    }
+
+    createWormateSnake(player, sessionId, playerData) {
+        if (!player.body || player.body.length === 0) return;
+
+        const isCurrentPlayer = sessionId === this.room.sessionId;
+        const baseColor = player.color ? parseInt(player.color.replace('#', '0x')) : 0x00ff88;
+        const alpha = player.alive ? (isCurrentPlayer ? 1.0 : 0.9) : 0.4;
+        
+        // Calcular el tamaño base de la serpiente
+        const baseSize = 12;
+        const segmentSize = baseSize + Math.min(player.body.length * 0.3, 8); // Crece con la longitud
+        
+        player.body.forEach((segment, index) => {
+            const isHead = index === 0;
+            const isTail = index === player.body.length - 1;
+            
+            // Crear gráfico para cada segmento
+            const graphics = this.gameScene.add.graphics();
+            
+            // Posición del segmento
+            const x = segment.x + 10;
+            const y = segment.y + 10;
+            
+            if (isHead) {
+                // Dibujar cabeza estilo Wormate.io
+                this.drawWormateHead(graphics, x, y, segmentSize, baseColor, player.direction);
+                
+                // Efecto de brillo para el jugador actual
+                if (isCurrentPlayer) {
+                    this.addPlayerGlow(graphics, segmentSize);
+                }
+            } else {
+                // Dibujar cuerpo estilo Wormate.io
+                const currentSize = segmentSize - (index * 0.5); // Disminuye hacia la cola
+                this.drawWormateBody(graphics, x, y, currentSize, baseColor, index, isTail);
+            }
+            
+            graphics.setAlpha(alpha);
+            graphics.setDepth(isHead ? 100 : 50 - index); // Cabeza siempre encima
+            
+            playerData.sprites.push(graphics);
+            this.snakeGroup.add(graphics);
+        });
+    }
+
+    drawWormateHead(graphics, x, y, size, baseColor, direction) {
+        // Cuerpo principal de la cabeza
+        graphics.fillStyle(baseColor);
+        graphics.fillCircle(0, 0, size);
+        
+        // Gradiente interior más claro
+        const lighterColor = this.lightenColor(baseColor, 0.3);
+        graphics.fillStyle(lighterColor);
+        graphics.fillCircle(0, 0, size * 0.7);
+        
+        // Borde más oscuro
+        const darkerColor = this.darkenColor(baseColor, 0.3);
+        graphics.lineStyle(2, darkerColor);
+        graphics.strokeCircle(0, 0, size);
+        
+        // Ojos estilo Wormate.io
+        this.drawWormateEyes(graphics, size, direction);
+        
+        // Posicionar la cabeza
+        graphics.setPosition(x, y);
+    }
+
+    drawWormateBody(graphics, x, y, size, baseColor, index, isTail) {
+        if (isTail) {
+            // Cola más pequeña y puntiaguda
+            size *= 0.6;
+        }
+        
+        // Cuerpo principal
+        graphics.fillStyle(baseColor);
+        graphics.fillCircle(0, 0, size);
+        
+        // Gradiente interior
+        const lighterColor = this.lightenColor(baseColor, 0.2);
+        graphics.fillStyle(lighterColor);
+        graphics.fillCircle(0, 0, size * 0.6);
+        
+        // Borde sutil
+        const darkerColor = this.darkenColor(baseColor, 0.2);
+        graphics.lineStyle(1, darkerColor, 0.5);
+        graphics.strokeCircle(0, 0, size);
+        
+        // Patrón de escamas (cada 3 segmentos)
+        if (index % 3 === 0) {
+            graphics.fillStyle(lighterColor);
+            graphics.fillCircle(-size * 0.3, 0, size * 0.15);
+            graphics.fillCircle(size * 0.3, 0, size * 0.15);
+        }
+        
+        graphics.setPosition(x, y);
+    }
+
+    drawWormateEyes(graphics, headSize, direction) {
+        const eyeSize = headSize * 0.25;
+        const eyeDistance = headSize * 0.4;
+        
+        // Posición de los ojos basada en la dirección
+        let eyeOffsetX = 0;
+        let eyeOffsetY = -eyeDistance;
+        
+        switch (direction) {
+            case 'right':
+                eyeOffsetX = eyeDistance;
+                eyeOffsetY = 0;
+                break;
+            case 'left':
+                eyeOffsetX = -eyeDistance;
+                eyeOffsetY = 0;
+                break;
+            case 'down':
+                eyeOffsetX = 0;
+                eyeOffsetY = eyeDistance;
+                break;
+            case 'up':
+            default:
+                eyeOffsetX = 0;
+                eyeOffsetY = -eyeDistance;
+                break;
+        }
+        
+        // Ojo izquierdo
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(eyeOffsetX - eyeSize, eyeOffsetY, eyeSize);
+        graphics.fillStyle(0x000000);
+        graphics.fillCircle(eyeOffsetX - eyeSize, eyeOffsetY, eyeSize * 0.6);
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(eyeOffsetX - eyeSize + eyeSize * 0.2, eyeOffsetY - eyeSize * 0.2, eyeSize * 0.2);
+        
+        // Ojo derecho
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(eyeOffsetX + eyeSize, eyeOffsetY, eyeSize);
+        graphics.fillStyle(0x000000);
+        graphics.fillCircle(eyeOffsetX + eyeSize, eyeOffsetY, eyeSize * 0.6);
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(eyeOffsetX + eyeSize + eyeSize * 0.2, eyeOffsetY - eyeSize * 0.2, eyeSize * 0.2);
+    }
+
+    lightenColor(color, factor) {
+        const r = (color >> 16) & 0xFF;
+        const g = (color >> 8) & 0xFF;
+        const b = color & 0xFF;
+        
+        const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
+        const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
+        const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
+        
+        return (newR << 16) | (newG << 8) | newB;
+    }
+
+    darkenColor(color, factor) {
+        const r = (color >> 16) & 0xFF;
+        const g = (color >> 8) & 0xFF;
+        const b = color & 0xFF;
+        
+        const newR = Math.floor(r * (1 - factor));
+        const newG = Math.floor(g * (1 - factor));
+        const newB = Math.floor(b * (1 - factor));
+        
+        return (newR << 16) | (newG << 8) | newB;
     }
 
     removePlayer(sessionId) {
@@ -497,21 +642,82 @@ class GameManager {
     }
 
     addFood(food, index) {
-        const sprite = this.gameScene.add.image(food.x + 8, food.y + 8, 'food');
-        sprite.setScale(food.value || 1); // Scale based on food value
+        // Crear comida estilo Wormate.io
+        const graphics = this.gameScene.add.graphics();
+        const x = food.x + 8;
+        const y = food.y + 8;
+        const size = 6 + (food.value || 1) * 2; // Tamaño basado en valor
         
-        // Add pulsing animation
+        // Colores de comida variados como Wormate.io
+        const foodColors = [
+            0xff6b6b, // Rojo
+            0x4ecdc4, // Azul claro
+            0xffe66d, // Amarillo
+            0x95e1d3, // Verde claro
+            0xffa8a8, // Rosa
+            0xa8e6cf, // Verde menta
+            0xffb347, // Naranja
+            0xc7ceea  // Lavanda
+        ];
+        
+        const baseColor = foodColors[index % foodColors.length];
+        
+        // Dibujar comida con gradiente
+        this.drawWormateFood(graphics, size, baseColor);
+        graphics.setPosition(x, y);
+        
+        // Animación de pulsación suave
         this.gameScene.tweens.add({
-            targets: sprite,
-            scaleX: (food.value || 1) * 1.2,
-            scaleY: (food.value || 1) * 1.2,
-            duration: 1000,
+            targets: graphics,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 1500,
             yoyo: true,
-            repeat: -1
+            repeat: -1,
+            ease: 'Sine.easeInOut'
         });
         
-        this.foods[index] = sprite;
-        this.foodGroup.add(sprite);
+        // Rotación lenta para efecto dinámico
+        this.gameScene.tweens.add({
+            targets: graphics,
+            rotation: Math.PI * 2,
+            duration: 4000,
+            repeat: -1,
+            ease: 'Linear'
+        });
+        
+        this.foods[index] = graphics;
+        this.foodGroup.add(graphics);
+    }
+
+    drawWormateFood(graphics, size, baseColor) {
+        // Sombra
+        graphics.fillStyle(0x000000, 0.2);
+        graphics.fillCircle(1, 1, size);
+        
+        // Cuerpo principal
+        graphics.fillStyle(baseColor);
+        graphics.fillCircle(0, 0, size);
+        
+        // Gradiente interior más claro
+        const lighterColor = this.lightenColor(baseColor, 0.4);
+        graphics.fillStyle(lighterColor);
+        graphics.fillCircle(0, 0, size * 0.7);
+        
+        // Brillo superior
+        graphics.fillStyle(0xffffff, 0.6);
+        graphics.fillCircle(-size * 0.2, -size * 0.2, size * 0.3);
+        
+        // Borde sutil
+        const darkerColor = this.darkenColor(baseColor, 0.3);
+        graphics.lineStyle(1, darkerColor, 0.8);
+        graphics.strokeCircle(0, 0, size);
+        
+        // Puntos decorativos (como en Wormate.io)
+        graphics.fillStyle(lighterColor, 0.8);
+        graphics.fillCircle(size * 0.3, 0, size * 0.15);
+        graphics.fillCircle(-size * 0.3, size * 0.2, size * 0.1);
+        graphics.fillCircle(0, -size * 0.4, size * 0.12);
     }
 
     removeFood(index) {
@@ -519,6 +725,153 @@ class GameManager {
             this.foods[index].destroy();
             delete this.foods[index];
         }
+    }
+
+    createFoodEatEffect(x, y) {
+        // Crear partículas cuando se come comida (estilo Wormate.io)
+        const particleCount = 8;
+        const particles = [];
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.gameScene.add.graphics();
+            const angle = (i / particleCount) * Math.PI * 2;
+            const speed = 50 + Math.random() * 30;
+            const size = 3 + Math.random() * 3;
+            const color = [0xFFE66D, 0xFF6B6B, 0x4ECDC4, 0x95E1D3][Math.floor(Math.random() * 4)];
+            
+            // Dibujar partícula
+            particle.fillStyle(color);
+            particle.fillCircle(0, 0, size);
+            particle.setPosition(x, y);
+            
+            // Animación de dispersión
+            this.gameScene.tweens.add({
+                targets: particle,
+                x: x + Math.cos(angle) * speed,
+                y: y + Math.sin(angle) * speed,
+                alpha: 0,
+                scaleX: 0.1,
+                scaleY: 0.1,
+                duration: 500,
+                ease: 'Power2',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+            
+            particles.push(particle);
+        }
+    }
+
+    createSnakeGrowEffect(headX, headY, color) {
+        // Efecto cuando la serpiente crece
+        const ring = this.gameScene.add.graphics();
+        ring.lineStyle(3, parseInt(color.replace('#', '0x')), 0.8);
+        ring.strokeCircle(0, 0, 15);
+        ring.setPosition(headX, headY);
+        
+        this.gameScene.tweens.add({
+            targets: ring,
+            scaleX: 2,
+            scaleY: 2,
+            alpha: 0,
+            duration: 400,
+            ease: 'Power2',
+            onComplete: () => {
+                ring.destroy();
+            }
+        });
+    }
+
+    createWormateBackground() {
+        // Fondo con patrón de puntos estilo Wormate.io
+        const bgGraphics = this.gameScene.add.graphics();
+        bgGraphics.setDepth(-100); // Asegurar que esté en el fondo
+        
+        // Color de fondo base
+        bgGraphics.fillStyle(0x1a1a2e);
+        bgGraphics.fillRect(-2000, -2000, 4000, 4000);
+        
+        // Crear patrón de puntos
+        const dotSpacing = 40;
+        const dotSize = 2;
+        const dotColor = 0x2d2d4a;
+        
+        for (let x = -2000; x < 2000; x += dotSpacing) {
+            for (let y = -2000; y < 2000; y += dotSpacing) {
+                bgGraphics.fillStyle(dotColor, 0.3);
+                bgGraphics.fillCircle(x, y, dotSize);
+            }
+        }
+        
+        // Líneas de cuadrícula sutiles
+        bgGraphics.lineStyle(1, 0x2d2d4a, 0.1);
+        for (let x = -2000; x < 2000; x += dotSpacing * 5) {
+            bgGraphics.lineBetween(x, -2000, x, 2000);
+        }
+        for (let y = -2000; y < 2000; y += dotSpacing * 5) {
+            bgGraphics.lineBetween(-2000, y, 2000, y);
+        }
+        
+        // Efectos de partículas flotantes de fondo
+        this.createBackgroundParticles();
+    }
+
+    createBackgroundParticles() {
+        // Partículas flotantes sutiles en el fondo
+        const particleCount = 20;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = this.gameScene.add.graphics();
+            const size = 1 + Math.random() * 2;
+            const color = [0x4ECDC4, 0xFF6B6B, 0xFFE66D, 0x95E1D3][Math.floor(Math.random() * 4)];
+            
+            particle.fillStyle(color, 0.1);
+            particle.fillCircle(0, 0, size);
+            
+            // Posición aleatoria
+            particle.setPosition(
+                Math.random() * 1600 - 800,
+                Math.random() * 1200 - 600
+            );
+            particle.setDepth(-50);
+            
+            // Movimiento flotante lento
+            this.gameScene.tweens.add({
+                targets: particle,
+                x: particle.x + (Math.random() - 0.5) * 200,
+                y: particle.y + (Math.random() - 0.5) * 200,
+                alpha: 0.3,
+                duration: 8000 + Math.random() * 4000,
+                yoyo: true,
+                repeat: -1,
+                ease: 'Sine.easeInOut'
+            });
+        }
+    }
+
+    addPlayerGlow(graphics, size) {
+        // Efecto de brillo pulsante para el jugador actual
+        const glowRing = this.gameScene.add.graphics();
+        glowRing.lineStyle(3, 0xffffff, 0.6);
+        glowRing.strokeCircle(0, 0, size + 5);
+        glowRing.setPosition(graphics.x, graphics.y);
+        glowRing.setDepth(graphics.depth + 1);
+        
+        // Animación de pulsación
+        this.gameScene.tweens.add({
+            targets: glowRing,
+            scaleX: 1.3,
+            scaleY: 1.3,
+            alpha: 0.2,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // Destruir cuando se actualice la serpiente
+        graphics.glowRing = glowRing;
     }
 
     startGame() {

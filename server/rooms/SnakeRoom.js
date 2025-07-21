@@ -252,9 +252,24 @@ class SnakeRoom extends Room {
   }
   
   getRandomColor() {
+    // Colores vibrantes estilo Wormate.io
     const colors = [
-      "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", 
-      "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"
+      "#FF6B6B", // Rojo coral
+      "#4ECDC4", // Turquesa
+      "#45B7D1", // Azul cielo
+      "#96CEB4", // Verde menta
+      "#FFEAA7", // Amarillo suave
+      "#DDA0DD", // Lavanda
+      "#FF9FF3", // Rosa fuerte
+      "#54A0FF", // Azul brillante
+      "#5F27CD", // Púrpura
+      "#00D2D3", // Cian
+      "#FF9F43", // Naranja
+      "#10AC84", // Verde esmeralda
+      "#EE5A24", // Naranja rojizo
+      "#0984E3", // Azul océano
+      "#6C5CE7", // Púrpura claro
+      "#FD79A8"  // Rosa chicle
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
