@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+
+{% block title %}Ventas - TPV Sistema{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-chart-bar me-2"></i>Reportes de Ventas
+        </h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Ventas Hoy</h4>
+                        <h2 id="today-sales">$0.00</h2>
+                        <small id="today-count">0 transacciones</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-day fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Esta Semana</h4>
+                        <h2 id="week-sales">$0.00</h2>
+                        <small id="week-count">0 transacciones</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-week fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Este Mes</h4>
+                        <h2 id="month-sales">$0.00</h2>
+                        <small id="month-count">0 transacciones</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calendar-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">Total</h4>
+                        <h2 id="total-sales">$0.00</h2>
+                        <small id="total-count">0 transacciones</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-credit-card me-2"></i>Ventas por Método de Pago</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="paymentMethodChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-area me-2"></i>Ventas por Día (Últimos 7 días)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dailySalesChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-receipt me-2"></i>Historial de Ventas</h5>
+                <div class="d-flex gap-2">
+                    <input type="date" id="date-from" class="form-control form-control-sm" style="width: 150px;">
+                    <input type="date" id="date-to" class="form-control form-control-sm" style="width: 150px;">
+                    <button class="btn btn-outline-primary btn-sm" onclick="filterSales()">
+                        <i class="fas fa-filter me-1"></i>Filtrar
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportSales()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha y Hora</th>
+                                <th>Total</th>
+                                <th>Método de Pago</th>
+                                <th>Items</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sales-table">
+                            <!-- Las ventas se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles de Venta -->
+<div class="modal fade" id="saleDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-receipt me-2"></i>Detalles de Venta #<span id="sale-detail-id"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Fecha:</strong> <span id="sale-detail-date"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Método de Pago:</strong> <span id="sale-detail-payment"></span>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sale-detail-items">
+                            <!-- Los items se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end">
+                    <h4>Total: $<span id="sale-detail-total"></span></h4>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="printSaleReceipt()">
+                    <i class="fas fa-print me-2"></i>Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let allSales = [];
+let paymentMethodChart = null;
+let dailySalesChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSalesData();
+    setupDateFilters();
+});
+
+function setupDateFilters() {
+    const today = new Date();
+    const sevenDaysAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('date-from').value = sevenDaysAgo.toISOString().split('T')[0];
+    document.getElementById('date-to').value = today.toISOString().split('T')[0];
+}
+
+function loadSalesData() {
+    fetch('/api/sales')
+        .then(response => response.json())
+        .then(sales => {
+            allSales = sales;
+            displaySales(sales);
+            updateSalesStats(sales);
+            createCharts(sales);
+        })
+        .catch(error => {
+            console.error('Error loading sales:', error);
+        });
+}
+
+function displaySales(sales) {
+    const tbody = document.getElementById('sales-table');
+    tbody.innerHTML = '';
+
+    sales.forEach(sale => {
+        const row = document.createElement('tr');
+        const saleDate = new Date(sale.created_at).toLocaleString();
+        
+        row.innerHTML = `
+            <td>#${sale.id}</td>
+            <td>${saleDate}</td>
+            <td><strong>$${sale.total.toFixed(2)}</strong></td>
+            <td>
+                <span class="badge ${getPaymentBadgeClass(sale.payment_method)}">
+                    ${formatPaymentMethod(sale.payment_method)}
+                </span>
+            </td>
+            <td>${sale.items.length} item(s)</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewSaleDetail(${sale.id})" title="Ver detalles">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    if (sales.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No se encontraron ventas</td></tr>';
+    }
+}
+
+function updateSalesStats(sales) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000));
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Ventas de hoy
+    const todaySales = sales.filter(sale => {
+        const saleDate = new Date(sale.created_at);
+        return saleDate >= today;
+    });
+    const todayTotal = todaySales.reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('today-sales').textContent = `$${todayTotal.toFixed(2)}`;
+    document.getElementById('today-count').textContent = `${todaySales.length} transacciones`;
+
+    // Ventas de esta semana
+    const weekSales = sales.filter(sale => {
+        const saleDate = new Date(sale.created_at);
+        return saleDate >= weekAgo;
+    });
+    const weekTotal = weekSales.reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('week-sales').textContent = `$${weekTotal.toFixed(2)}`;
+    document.getElementById('week-count').textContent = `${weekSales.length} transacciones`;
+
+    // Ventas de este mes
+    const monthSales = sales.filter(sale => {
+        const saleDate = new Date(sale.created_at);
+        return saleDate >= monthStart;
+    });
+    const monthTotal = monthSales.reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('month-sales').textContent = `$${monthTotal.toFixed(2)}`;
+    document.getElementById('month-count').textContent = `${monthSales.length} transacciones`;
+
+    // Total de ventas
+    const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
+    document.getElementById('total-sales').textContent = `$${totalSales.toFixed(2)}`;
+    document.getElementById('total-count').textContent = `${sales.length} transacciones`;
+}
+
+function createCharts(sales) {
+    createPaymentMethodChart(sales);
+    createDailySalesChart(sales);
+}
+
+function createPaymentMethodChart(sales) {
+    const paymentMethods = {};
+    sales.forEach(sale => {
+        const method = formatPaymentMethod(sale.payment_method);
+        paymentMethods[method] = (paymentMethods[method] || 0) + sale.total;
+    });
+
+    const ctx = document.getElementById('paymentMethodChart').getContext('2d');
+    
+    if (paymentMethodChart) {
+        paymentMethodChart.destroy();
+    }
+
+    paymentMethodChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(paymentMethods),
+            datasets: [{
+                data: Object.values(paymentMethods),
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createDailySalesChart(sales) {
+    const last7Days = [];
+    const dailySales = {};
+    
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        last7Days.push(dateStr);
+        dailySales[dateStr] = 0;
+    }
+
+    sales.forEach(sale => {
+        const saleDate = sale.created_at.split('T')[0];
+        if (dailySales.hasOwnProperty(saleDate)) {
+            dailySales[saleDate] += sale.total;
+        }
+    });
+
+    const ctx = document.getElementById('dailySalesChart').getContext('2d');
+    
+    if (dailySalesChart) {
+        dailySalesChart.destroy();
+    }
+
+    dailySalesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: last7Days.map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+            }),
+            datasets: [{
+                label: 'Ventas ($)',
+                data: last7Days.map(date => dailySales[date]),
+                borderColor: '#36A2EB',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function getPaymentBadgeClass(method) {
+    switch(method) {
+        case 'efectivo': return 'bg-success';
+        case 'tarjeta': return 'bg-primary';
+        case 'transferencia': return 'bg-info';
+        default: return 'bg-secondary';
+    }
+}
+
+function formatPaymentMethod(method) {
+    switch(method) {
+        case 'efectivo': return 'Efectivo';
+        case 'tarjeta': return 'Tarjeta';
+        case 'transferencia': return 'Transferencia';
+        default: return method;
+    }
+}
+
+function filterSales() {
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+
+    if (!dateFrom || !dateTo) {
+        alert('Por favor seleccione ambas fechas');
+        return;
+    }
+
+    const fromDate = new Date(dateFrom);
+    const toDate = new Date(dateTo + 'T23:59:59');
+
+    const filteredSales = allSales.filter(sale => {
+        const saleDate = new Date(sale.created_at);
+        return saleDate >= fromDate && saleDate <= toDate;
+    });
+
+    displaySales(filteredSales);
+    updateSalesStats(filteredSales);
+    createCharts(filteredSales);
+}
+
+function viewSaleDetail(saleId) {
+    const sale = allSales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    document.getElementById('sale-detail-id').textContent = sale.id;
+    document.getElementById('sale-detail-date').textContent = new Date(sale.created_at).toLocaleString();
+    document.getElementById('sale-detail-payment').textContent = formatPaymentMethod(sale.payment_method);
+    document.getElementById('sale-detail-total').textContent = sale.total.toFixed(2);
+
+    const itemsTable = document.getElementById('sale-detail-items');
+    itemsTable.innerHTML = '';
+
+    sale.items.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.product_name}</td>
+            <td>${item.quantity}</td>
+            <td>$${item.unit_price.toFixed(2)}</td>
+            <td>$${item.subtotal.toFixed(2)}</td>
+        `;
+        itemsTable.appendChild(row);
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
+    modal.show();
+}
+
+function exportSales() {
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    
+    // Crear CSV con las ventas filtradas
+    let csv = 'ID,Fecha,Total,Método de Pago,Items\n';
+    
+    const filteredSales = allSales.filter(sale => {
+        if (!dateFrom || !dateTo) return true;
+        
+        const fromDate = new Date(dateFrom);
+        const toDate = new Date(dateTo + 'T23:59:59');
+        const saleDate = new Date(sale.created_at);
+        
+        return saleDate >= fromDate && saleDate <= toDate;
+    });
+    
+    filteredSales.forEach(sale => {
+        const itemsCount = sale.items.length;
+        const saleDate = new Date(sale.created_at).toLocaleString();
+        csv += `${sale.id},"${saleDate}",${sale.total},${formatPaymentMethod(sale.payment_method)},${itemsCount}\n`;
+    });
+    
+    // Descargar archivo
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ventas_${dateFrom}_${dateTo}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function printSaleReceipt() {
+    alert('Funcionalidad de impresión no implementada en esta demo');
+}
+</script>
+{% endblock %}
